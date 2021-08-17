@@ -7,8 +7,7 @@ def normalize_dist(dist):
 
 
 def update_prior(prior, likelihood):
-    _prior = prior.copy()
-    posterior = normalize_dist(_prior * likelihood)
+    posterior = normalize_dist(prior * likelihood)
     return posterior
 
 

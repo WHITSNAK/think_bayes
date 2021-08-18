@@ -1,6 +1,7 @@
 import pandas as pd, numpy as np
 from itertools import product
 from scipy.stats import gaussian_kde
+from scipy.interpolate import interp1d
 
 
 def normalize_dist(dist):
@@ -91,3 +92,37 @@ def dist_moment(dist, moment=2):
     mu = dist_mean(dist)
     m = np.sum((dist.index.values - mu) ** moment * dist.values) ** (1/moment)
     return m
+
+
+def credible_interval(dist, p=0.1):
+    _p = p / 2
+    lp, rp = _p, 1 - _p
+    func = interp1d(
+        dist.cumsum().values,
+        dist.index.values,
+        kind="next",
+        copy=False,
+        assume_sorted=True,
+        bounds_error=False,
+        fill_value=(dist.index.values[0], np.nan),
+    )
+    return func([lp, rp])
+
+    
+def make_tri_dist(qs):
+    if hasattr(qs ,'__iter__'):
+        size = len(qs)
+    elif isinstance(qs, int):
+        size = qs
+        qs = np.linspace(0, 1, qs)
+    else:
+        raise TypeError('Give a integer or a iterable')
+    
+    n = int(size / 2)
+    l, r = n, n
+    if (size % 2) == 0:
+        r -= 1
+
+    ps = np.append(np.arange(l), np.arange(r, -1, -1))
+    dist = pd.Series(ps, index=qs) / ps.sum()
+    return dist

@@ -1,5 +1,6 @@
 import pandas as pd, numpy as np
 from itertools import product
+from scipy.stats import gaussian_kde
 
 
 def normalize_dist(dist):
@@ -11,8 +12,19 @@ def update_prior(prior, likelihood):
     return posterior
 
 
+def make_uniform_dist(qs):
+    try:
+        size = len(qs)
+    except TypeError:
+        qs = np.arange(0, qs)
+        size = qs.size
+
+    dist = pd.Series(np.ones(size), index=qs) / size
+    return dist
+
+
 def make_die(sides=6):
-    return pd.Series(np.ones(sides)/sides, index=np.arange(1, sides+1))
+    return make_uniform_dist(np.arange(1, sides+1))
 
 
 def add_dist(*dists):
@@ -48,7 +60,7 @@ def cdf_to_pmf(cdf):
     return _cdf
 
 
-_func_name = {
+_np_func_name = {
     'gt': 'greater',
     'gte': 'greater_equal',
     'lt': 'less',
@@ -59,6 +71,23 @@ _func_name = {
 def prob_superiority(pmf1, pmf2, method='gt'):
     qX, qY = np.meshgrid(pmf1.index.values, pmf2.index.values)
     pX, pY = np.meshgrid(pmf1, pmf2)
-    p = (pX * pY * np.__dict__[_func_name[method]](qX, qY)).sum()
+    p = (pX * pY * np.__dict__[_np_func_name[method]](qX, qY)).sum()
     return p
 
+
+def fit_gaussian_kde_pmf(sample, qs):
+    kde = gaussian_kde(sample)
+    pmf = kde(qs)
+    pmf = pd.Series(normalize_dist(pmf), index=qs)
+    return pmf
+
+
+def dist_mean(dist):
+    mu = (dist.index.values * dist.values).sum()
+    return mu
+
+
+def dist_moment(dist, moment=2):
+    mu = dist_mean(dist)
+    m = np.sum((dist.index.values - mu) ** moment * dist.values) ** (1/moment)
+    return m
